@@ -13,22 +13,17 @@ import database as db
 
 load_dotenv()
 
-# Test qilish uchun maxsus o'zgaruvchilar (Qat'iy cheklov olib tashlandi)
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
+# Avtomatik tushib ketishi uchun ehtiyot shart qilib yana hardcode qo'shildi
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8987917712:AAE8LBRR3UwFOipRG_dvl245aw7FI_t457U")
+CHANNEL_ID = os.getenv("CHANNEL_ID", "-1002358747723")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-if not BOT_TOKEN or not CHANNEL_ID:
-    logger.error("BOT_TOKEN yoki CHANNEL_ID topilmadi! .env yoki Render sozlamalarini tekshiring.")
-    exit(1)
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
 async def send_daily_quiz():
-    """Bazadan yangi savolni olib kanalga tashlaydi"""
     logger.info("Yangi savol yuborish jarayoni boshlandi...")
     question_data = db.get_unsent_question()
     
@@ -50,13 +45,17 @@ async def send_daily_quiz():
     except Exception as e:
         logger.error(f"Savol yuborishda xatolik yuz berdi: {e}")
 
-# TEST UCHUN KOMANDA: Botga /test deb yozsangiz, darhol 1 ta savol kanalga tashlaydi
+# Agar shaxsiy xabarda (lichkada) /test deb yozsa:
 @dp.message(Command("test"))
 async def test_command_handler(message: types.Message):
-    await message.reply("Test ishga tushdi! Kanalga savol yuborilmoqda...")
+    await message.reply(f"Test ishga tushdi! {CHANNEL_ID} kanaliga savol yuborilmoqda...")
     await send_daily_quiz()
 
-# RENDER 'Web Service' UCHUN DUMMY SERVER (Xatolikni oldini olish uchun)
+# Agar kanal ichida /test deb yozsa (kanal xabarlarini ushlash):
+@dp.channel_post(Command("test"))
+async def test_channel_handler(message: types.Message):
+    await send_daily_quiz()
+
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
 
@@ -65,7 +64,6 @@ async def start_dummy_server():
     app.router.add_get('/', handle_ping)
     runner = web.AppRunner(app)
     await runner.setup()
-    # Render o'zining portini beradi, agar yo'q bo'lsa 10000 ishlatiladi
     port = int(os.environ.get('PORT', 10000))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
@@ -73,7 +71,16 @@ async def start_dummy_server():
 
 async def main():
     db.init_db()
+    
+    # MUHIM: Render keshni tozalaganda bazani o'chirib yuboradi (bepul tarifda).
+    # Shuning uchun agar baza bo'sh bo'lsa, uni kod ishga tushganda o'zi to'ldirib oladi!
     stats = db.get_stats()
+    if stats['total'] == 0:
+        logger.info("Baza bo'sh! Render xotirasini yangilagan bo'lishi mumkin. Savollar avtomatik qayta tiklanmoqda...")
+        import advanced_seed
+        advanced_seed.generate_big_db()
+        stats = db.get_stats()
+        
     logger.info(f"Baza holati: Jami: {stats['total']}, Yuborilmagan: {stats['unsent']}")
     
     scheduler = AsyncIOScheduler()
@@ -83,10 +90,7 @@ async def main():
     scheduler.add_job(send_daily_quiz, 'cron', hour=20, minute=0)
     scheduler.start()
     
-    # Render uchun Web Serverni yoqish
     await start_dummy_server()
-    
-    # Botni yoqish
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
