@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.db
+savollar.xlsx
+.idea/
+.vscode/
+*.log
