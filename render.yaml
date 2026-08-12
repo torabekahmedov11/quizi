@@ -8,6 +8,6 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.4
       - key: BOT_TOKEN
-        sync: false
+        value: "8987917712:AAE8LBRR3UwFOipRG_dvl245aw7FI_t457U"
       - key: CHANNEL_ID
-        value: "@dunyoviy_diniy_savollar"
+        value: "-1002358747723"

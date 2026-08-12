@@ -12,8 +12,8 @@ import database as db
 # .env fayldan o'zgaruvchilarni yuklash
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID") # Masalan: @dunyoviy_diniy_savollar yoki -100... raqam
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8987917712:AAE8LBRR3UwFOipRG_dvl245aw7FI_t457U")
+CHANNEL_ID = os.getenv("CHANNEL_ID", "-1002358747723")
 
 # Loglarni sozlash (Serverda xatoliklarni kuzatish uchun muhim)
 logging.basicConfig(
@@ -21,6 +21,11 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Xavfsizlik: Boshqa kanalga ulanib qolmasligi uchun qat'iy himoya
+ALLOWED_CHANNEL = "-1002358747723"
+if str(CHANNEL_ID) != ALLOWED_CHANNEL:
+    CHANNEL_ID = ALLOWED_CHANNEL
 
 if not BOT_TOKEN or not CHANNEL_ID:
     logger.error("BOT_TOKEN yoki CHANNEL_ID topilmadi! Iltimos .env faylini tekshiring.")
