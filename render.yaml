@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: telegram-quiz-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.4
+      - key: BOT_TOKEN
+        sync: false
+      - key: CHANNEL_ID
+        value: "@dunyoviy_diniy_savollar"
