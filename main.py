@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -13,9 +15,12 @@ import database as db
 
 load_dotenv()
 
-# Avtomatik tushib ketishi uchun ehtiyot shart qilib yana hardcode qo'shildi
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8987917712:AAE8LBRR3UwFOipRG_dvl245aw7FI_t457U")
 CHANNEL_ID = os.getenv("CHANNEL_ID", "-1002358747723")
+
+# O'zbekiston vaqti va Loyihaning ilk boshlangan KUN VA VAQTI (Epoch)
+TZ = ZoneInfo('Asia/Tashkent')
+START_DATE = datetime(2026, 8, 12, 0, 0, 0, tzinfo=TZ)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -45,13 +50,11 @@ async def send_daily_quiz():
     except Exception as e:
         logger.error(f"Savol yuborishda xatolik yuz berdi: {e}")
 
-# Agar shaxsiy xabarda (lichkada) /test deb yozsa:
 @dp.message(Command("test"))
 async def test_command_handler(message: types.Message):
     await message.reply(f"Test ishga tushdi! {CHANNEL_ID} kanaliga savol yuborilmoqda...")
     await send_daily_quiz()
 
-# Agar kanal ichida /test deb yozsa (kanal xabarlarini ushlash):
 @dp.channel_post(Command("test"))
 async def test_channel_handler(message: types.Message):
     await send_daily_quiz()
@@ -69,21 +72,47 @@ async def start_dummy_server():
     await site.start()
     logger.info(f"Dummy web server port {port} da ishga tushdi")
 
+def sync_time_based_state():
+    """Vaqtga qarab qayerda qolganini (indexni) hisoblash mantiqiy qismi"""
+    now = datetime.now(TZ)
+    delta = now - START_DATE
+    days = delta.days
+    
+    if days < 0:
+        return
+        
+    count = days * 4
+    if now.hour >= 9: count += 1
+    if now.hour >= 13: count += 1
+    if now.hour >= 17: count += 1
+    if now.hour >= 20: count += 1
+    
+    # Topilgan o'tkazib yuborilishi kerak bo'lgan savollar sonini belgilaymiz
+    if count > 0:
+        db.fast_forward(count)
+        logger.info(f"Sinxronizatsiya: {count} ta savol avtomatik o'tkazib yuborildi. Davom etamiz!")
+
 async def main():
     db.init_db()
-    
-    # MUHIM: Render keshni tozalaganda bazani o'chirib yuboradi (bepul tarifda).
-    # Shuning uchun agar baza bo'sh bo'lsa, uni kod ishga tushganda o'zi to'ldirib oladi!
     stats = db.get_stats()
+    
     if stats['total'] == 0:
         logger.info("Baza bo'sh! Render xotirasini yangilagan bo'lishi mumkin. Savollar avtomatik qayta tiklanmoqda...")
         import advanced_seed
         advanced_seed.generate_big_db()
+        
+        import os
+        if os.path.exists('savollar.xlsx'):
+            import import_excel
+            import_excel.import_from_excel()
+            
+        # Bazani tiklagach, kalendar orqali qayerda to'xtaganligini hisoblab o'tkazib yuboramiz
+        sync_time_based_state()
         stats = db.get_stats()
         
     logger.info(f"Baza holati: Jami: {stats['total']}, Yuborilmagan: {stats['unsent']}")
     
-    scheduler = AsyncIOScheduler()
+    scheduler = AsyncIOScheduler(timezone=TZ)
     scheduler.add_job(send_daily_quiz, 'cron', hour=9, minute=0)
     scheduler.add_job(send_daily_quiz, 'cron', hour=13, minute=0)
     scheduler.add_job(send_daily_quiz, 'cron', hour=17, minute=0)

@@ -41,8 +41,8 @@ def get_unsent_question():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Get a random unsent question
-    cursor.execute('SELECT id, question, options, correct_option_id FROM questions WHERE is_sent = 0 ORDER BY RANDOM() LIMIT 1')
+    # MUHIM: Xotira o'chib yonganda davom etishi uchun RANDOM o'rniga id bo'yicha (ASC) ketma-ket olamiz
+    cursor.execute('SELECT id, question, options, correct_option_id FROM questions WHERE is_sent = 0 ORDER BY id ASC LIMIT 1')
     row = cursor.fetchone()
     conn.close()
     
@@ -62,7 +62,16 @@ def mark_as_sent(question_id: int):
     conn.commit()
     conn.close()
 
+def fast_forward(count: int):
+    """Berilgan miqdordagi savollarni avtomatik o'tkazib yuboradi (is_sent = 1 qiladi)"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE questions SET is_sent = 1 WHERE id <= ?', (count,))
+    conn.commit()
+    conn.close()
+
 def get_stats():
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute('SELECT COUNT(*) FROM questions')

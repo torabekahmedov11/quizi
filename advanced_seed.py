@@ -1,6 +1,10 @@
 import random
 import database as db
 
+# Har safar Render o'chib yonganda savollar tartibi umuman o'zgarmasligi uchun 
+# fiksirlangan (qotirilgan) seed o'rnatamiz. Bu juda muhim!
+random.seed(42)
+
 # 1. Mamlakatlar va poytaxtlar (80 ta)
 countries = {
     "O'zbekiston": "Toshkent", "Qozog'iston": "Ostona", "Qirg'iziston": "Bishkek", "Tojikiston": "Dushanbe", "Turkmaniston": "Ashxobod",
@@ -117,14 +121,25 @@ for event, date in history_dates.items():
 for g_q in general_questions:
     all_questions.append(g_q)
 
-# 5. Matematik mantiqiy savollar (50 ta)
-for i in range(50):
-    a = random.randint(11, 30)
-    b = random.randint(11, 30)
+# 5. Matematik mantiqiy savollar (150 ta)
+for i in range(100):
+    a = random.randint(11, 100)
+    b = random.randint(11, 50)
     c_ans = a * b
     wrongs = [str(c_ans + random.randint(1, 10)), str(c_ans - random.randint(1, 10)), str(c_ans + random.randint(11, 20))]
     all_questions.append({
         "q": f"{a} ni {b} ga ko'paytirganda natija necha bo'ladi?",
+        "c": str(c_ans),
+        "w": wrongs
+    })
+
+for i in range(50):
+    a = random.randint(100, 500)
+    b = random.randint(100, 500)
+    c_ans = a + b
+    wrongs = [str(c_ans + random.randint(1, 20)), str(c_ans - random.randint(1, 20)), str(c_ans + random.randint(21, 50))]
+    all_questions.append({
+        "q": f"{a} va {b} sonlarining yig'indisi necha bo'ladi?",
         "c": str(c_ans),
         "w": wrongs
     })
