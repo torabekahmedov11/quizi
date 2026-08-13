@@ -28,12 +28,14 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-async def send_daily_quiz():
+async def send_daily_quiz(message: types.Message = None):
     logger.info("Yangi savol yuborish jarayoni boshlandi...")
     question_data = db.get_unsent_question()
     
     if not question_data:
-        logger.warning("DIQQAT: Bazada yuborilmagan savollar qolmadi!")
+        err = "DIQQAT: Bazada yuborilmagan savollar qolmadi!"
+        logger.warning(err)
+        if message: await message.reply(err)
         return
     
     try:
@@ -47,17 +49,20 @@ async def send_daily_quiz():
         )
         db.mark_as_sent(question_data['id'])
         logger.info(f"Savol muvaffaqiyatli yuborildi! ID: {question_data['id']}")
+        if message: await message.reply(f"✅ Savol kanalingizga muvaffaqiyatli yuborildi! (ID: {question_data['id']})")
     except Exception as e:
-        logger.error(f"Savol yuborishda xatolik yuz berdi: {e}")
+        err_msg = f"❌ Savol yuborishda xatolik yuz berdi!\n\nXato matni: {e}\n\nEslatma: Botni kanalga admin qildingizmi va kanal ID to'g'rimi?"
+        logger.error(err_msg)
+        if message: await message.reply(err_msg)
 
 @dp.message(Command("test"))
 async def test_command_handler(message: types.Message):
-    await message.reply(f"Test ishga tushdi! {CHANNEL_ID} kanaliga savol yuborilmoqda...")
-    await send_daily_quiz()
+    await message.reply(f"Test ishga tushdi! {CHANNEL_ID} kanaliga savol yuborishga harakat qilaman...")
+    await send_daily_quiz(message)
 
 @dp.channel_post(Command("test"))
 async def test_channel_handler(message: types.Message):
-    await send_daily_quiz()
+    await send_daily_quiz(message)
 
 async def handle_ping(request):
     return web.Response(text="Bot is running!")
@@ -120,6 +125,13 @@ async def main():
     scheduler.start()
     
     await start_dummy_server()
+    
+    # Muhim: Agar oldin webhook yoqilgan bo'lsa, polling ishlashi uchun uni o'chiramiz
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+    except:
+        pass
+        
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
